@@ -4,8 +4,14 @@ import { CoupleSpace, Message, Template, Memory } from '../types';
 // Read configuration from environment variables or localStorage
 function getSupabaseCredentials() {
   const metaEnv = (import.meta as any).env || {};
-  const envUrl = metaEnv.VITE_SUPABASE_URL || metaEnv.NEXT_PUBLIC_SUPABASE_URL || '';
-  const envKey = metaEnv.VITE_SUPABASE_ANON_KEY || metaEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  const envUrl = metaEnv.VITE_SUPABASE_URL || metaEnv.NEXT_PUBLIC_SUPABASE_URL || metaEnv.SUPABASE_URL || '';
+  const envKey =
+    metaEnv.VITE_SUPABASE_ANON_KEY ||
+    metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    metaEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    metaEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    metaEnv.SUPABASE_ANON_KEY ||
+    '';
 
   const localSaved = localStorage.getItem('happy_messages_supabase_config');
   if (localSaved) {
