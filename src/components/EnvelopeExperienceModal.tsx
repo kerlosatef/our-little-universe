@@ -202,8 +202,16 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
             <div className="py-6 sm:py-10 flex flex-col items-center">
               {/* Wax Seal Icon with wobble */}
               <div className="relative mb-6">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-rose-700 via-rose-600 to-pink-500 shadow-xl border-4 border-amber-300/80 flex items-center justify-center text-3xl sm:text-4xl hover-wax">
-                  {message.design?.sticker || '💌'}
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-rose-700 via-rose-600 to-pink-500 shadow-xl border-4 border-amber-300/80 flex items-center justify-center text-3xl sm:text-4xl hover-wax overflow-hidden">
+                  {senderProfile?.avatarUrl ? (
+                    <img
+                      src={senderProfile.avatarUrl}
+                      alt={senderProfile.displayName || 'Sender'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    message.design?.sticker || senderProfile?.avatarEmoji || '💌'
+                  )}
                 </div>
                 <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 text-[10px] font-bold uppercase tracking-wider shadow">
                   WAX SEAL
@@ -278,23 +286,39 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
 
               {message.replies && message.replies.length > 0 ? (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {message.replies.map((reply, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-rose-50/70 dark:bg-slate-800/60 text-xs border border-rose-100 dark:border-slate-700/60"
-                    >
-                      <div className="flex items-center justify-between font-bold text-rose-900 dark:text-rose-200 mb-0.5">
-                        <span>{reply.authorName}</span>
-                        <span className="text-[10px] opacity-60 font-mono">
-                          {new Date(reply.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
+                  {message.replies.map((reply, i) => {
+                    const replyAuthor = coupleSpace?.members?.[reply.authorRole];
+                    return (
+                      <div
+                        key={i}
+                        className="p-2.5 rounded-xl bg-rose-50/70 dark:bg-slate-800/60 text-xs border border-rose-100 dark:border-slate-700/60 flex items-start gap-2.5"
+                      >
+                        <div className="w-7 h-7 rounded-full overflow-hidden bg-rose-500/20 flex items-center justify-center text-xs font-bold shrink-0 border border-rose-300/40">
+                          {replyAuthor?.avatarUrl ? (
+                            <img
+                              src={replyAuthor.avatarUrl}
+                              alt={replyAuthor.displayName || 'Author'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>{replyAuthor?.avatarEmoji || '💌'}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between font-bold text-rose-900 dark:text-rose-200 mb-0.5">
+                            <span className="truncate">{reply.authorName}</span>
+                            <span className="text-[10px] opacity-60 font-mono shrink-0">
+                              {new Date(reply.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <p className="opacity-90 break-words">{reply.text}</p>
+                        </div>
                       </div>
-                      <p className="opacity-90">{reply.text}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs opacity-60 italic">No replies yet. Whisper back below...</p>

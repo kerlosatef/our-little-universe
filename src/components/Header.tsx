@@ -73,10 +73,18 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2.5 sm:gap-3 cursor-pointer min-w-0"
         >
           <div
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center text-white shadow-md text-base sm:text-lg shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center text-white shadow-md text-base sm:text-lg shrink-0 overflow-hidden"
             style={{ backgroundColor: activeTheme.accent }}
           >
-            💌
+            {currentMember?.avatarUrl ? (
+              <img
+                src={currentMember.avatarUrl}
+                alt={currentMember.displayName || 'Profile'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              currentMember?.avatarEmoji || '💌'
+            )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
@@ -98,6 +106,35 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Action Icons & Badges */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* User Profile Avatar Pill */}
+          <button
+            type="button"
+            onClick={() => setCurrentPage('settings')}
+            className={`flex items-center gap-1.5 p-1 rounded-full border transition hover:scale-105 active:scale-95 ${
+              currentPage === 'settings' ? 'ring-2 ring-rose-400' : ''
+            }`}
+            style={{
+              borderColor: activeTheme.border,
+              backgroundColor: activeTheme.cardBg
+            }}
+            title={lang === 'ar' ? 'تعديل صورتك الشخصية والإعدادات' : 'Profile & Settings'}
+          >
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-rose-500/20 flex items-center justify-center text-xs sm:text-sm font-bold border border-rose-400/40 shrink-0">
+              {currentMember?.avatarUrl ? (
+                <img
+                  src={currentMember.avatarUrl}
+                  alt={currentMember.displayName || 'Avatar'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>{currentMember?.avatarEmoji || '👤'}</span>
+              )}
+            </div>
+            <span className="text-[11px] sm:text-xs font-semibold max-w-[70px] truncate hidden sm:inline px-1">
+              {currentMember?.nickname || currentMember?.displayName}
+            </span>
+          </button>
+
           {/* Supabase status badge */}
           <div
             onClick={() => setCurrentPage('settings')}

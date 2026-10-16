@@ -62,7 +62,13 @@ export const TRANSLATIONS = {
     settingsTitle: "Sanctuary Settings & Personalization",
     logout: "Lock Sanctuary (Logout)",
     reducedMotion: "Reduced Motion (Accessibility)",
-    partnerWaiting: "Waiting for your partner to join with code:"
+    partnerWaiting: "Waiting for your partner to join with code:",
+    profileTitle: "My Profile & Avatar",
+    uploadPhoto: "Upload Profile Photo",
+    changePhoto: "Change Profile Photo",
+    removePhoto: "Remove Photo",
+    saveProfile: "Save Profile Info",
+    partnerProfile: "Partner Profile"
   },
   ar: {
     appName: "Our Little Universe",
@@ -125,7 +131,13 @@ export const TRANSLATIONS = {
     settingsTitle: "إعدادات الملاذ والتخصيص",
     logout: "قفل الملاذ (خروج)",
     reducedMotion: "تقليل الحركة (إمكانية الوصول)",
-    partnerWaiting: "بانتظار انضمام شريكك باستخدام الرمز:"
+    partnerWaiting: "بانتظار انضمام شريكك باستخدام الرمز:",
+    profileTitle: "صورة البروفايل والملف الشخصي",
+    uploadPhoto: "رفع صورة بروفايل",
+    changePhoto: "تغيير صورة البروفايل",
+    removePhoto: "إزالة الصورة واستخدام إيموجي",
+    saveProfile: "حفظ بيانات الملف الشخصي",
+    partnerProfile: "الملف الشخصي للشريك"
   }
 };
 

@@ -192,8 +192,16 @@ export const StyledMessageCard: React.FC<StyledMessageCardProps> = ({
       {/* Card Header: Metadata & Sender */}
       <div className={`flex items-start justify-between gap-3 mb-3 ${isDiary ? 'pl-6 sm:pl-8' : ''}`}>
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center font-bold text-base shrink-0">
-            {senderProfile?.avatarEmoji || d.sticker || '💌'}
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-rose-300/30">
+            {senderProfile?.avatarUrl ? (
+              <img
+                src={senderProfile.avatarUrl}
+                alt={senderProfile.displayName || 'Sender'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              senderProfile?.avatarEmoji || d.sticker || '💌'
+            )}
           </div>
           <div className="min-w-0">
             <span className="block text-xs sm:text-sm font-bold truncate">

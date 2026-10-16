@@ -5,7 +5,8 @@ import {
   Settings, Palette, PenTool, Lock, Key,
   Search, Filter, Printer, Camera, Feather,
   CheckCircle2, AlertCircle, Database, Send,
-  Copy, ChevronLeft, ChevronRight, Eye, RefreshCw
+  Copy, ChevronLeft, ChevronRight, Eye, RefreshCw,
+  User, Trash2, Upload
 } from 'lucide-react';
 
 import {
@@ -65,10 +66,16 @@ export default function App() {
     coupleName: 'Our Little Universe',
     websiteTitle: 'Our Little Universe 💌',
     pairingCode: '',
-    avatarEmoji: '👩‍❤️‍👨'
+    avatarEmoji: '👩‍❤️‍👨',
+    avatarUrl: ''
   });
   const [authError, setAuthError] = useState<string>('');
   const [authLoading, setAuthLoading] = useState<boolean>(false);
+
+  // Profile Settings Form State
+  const [profileDisplayName, setProfileDisplayName] = useState<string>('');
+  const [profileNickname, setProfileNickname] = useState<string>('');
+  const [profileEmoji, setProfileEmoji] = useState<string>('');
 
   // Write Form State
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -215,6 +222,95 @@ export default function App() {
     return coupleSpace.members?.[partnerRole] || null;
   }, [coupleSpace, activeMemberRole, partnerRole]);
 
+  // Sync profile form state when currentMember changes
+  useEffect(() => {
+    if (currentMember) {
+      setProfileDisplayName(currentMember.displayName || '');
+      setProfileNickname(currentMember.nickname || '');
+      setProfileEmoji(currentMember.avatarEmoji || '👩‍❤️‍👨');
+    }
+  }, [currentMember]);
+
+  // Profile photo & info management
+  const handleUpdateProfileAvatar = async (file: File) => {
+    if (!coupleSpace || !activeMemberRole || !currentMember) return;
+    try {
+      showNotice(lang === 'ar' ? 'جارٍ ضغط الصورة وحفظها...' : 'Compressing photo...');
+      const compressed = await compressImageFile(file, 400);
+
+      const updatedCurrent: Member = {
+        ...currentMember,
+        avatarUrl: compressed
+      };
+
+      const updatedSpace: CoupleSpace = {
+        ...coupleSpace,
+        members: {
+          ...coupleSpace.members,
+          [activeMemberRole]: updatedCurrent
+        }
+      };
+
+      setCoupleSpace(updatedSpace);
+      setAllSpaces(prev => prev.map(s => (s.id === updatedSpace.id ? updatedSpace : s)));
+      await dbSaveCoupleSpace(updatedSpace);
+      showNotice(lang === 'ar' ? 'تم حفظ صورتك الشخصية بنجاح! 📸' : 'Profile photo saved successfully! 📸');
+    } catch (e) {
+      console.error(e);
+      showNotice(lang === 'ar' ? 'حدث خطأ في معالجة الصورة' : 'Error updating photo', 'error');
+    }
+  };
+
+  const handleRemoveProfileAvatar = async () => {
+    if (!coupleSpace || !activeMemberRole || !currentMember) return;
+    const updatedCurrent: Member = {
+      ...currentMember,
+      avatarUrl: ''
+    };
+
+    const updatedSpace: CoupleSpace = {
+      ...coupleSpace,
+      members: {
+        ...coupleSpace.members,
+        [activeMemberRole]: updatedCurrent
+      }
+    };
+
+    setCoupleSpace(updatedSpace);
+    setAllSpaces(prev => prev.map(s => (s.id === updatedSpace.id ? updatedSpace : s)));
+    await dbSaveCoupleSpace(updatedSpace);
+    showNotice(lang === 'ar' ? 'تمت إزالة الصورة واستخدام الإيموجي' : 'Profile photo removed');
+  };
+
+  const handleSaveProfileDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coupleSpace || !activeMemberRole || !currentMember) return;
+    if (!profileDisplayName.trim()) {
+      showNotice(lang === 'ar' ? 'يرجى كتابة اسم العرض' : 'Please enter a name', 'error');
+      return;
+    }
+
+    const updatedCurrent: Member = {
+      ...currentMember,
+      displayName: profileDisplayName.trim(),
+      nickname: profileNickname.trim() || profileDisplayName.trim(),
+      avatarEmoji: profileEmoji || currentMember.avatarEmoji || '👩‍❤️‍👨'
+    };
+
+    const updatedSpace: CoupleSpace = {
+      ...coupleSpace,
+      members: {
+        ...coupleSpace.members,
+        [activeMemberRole]: updatedCurrent
+      }
+    };
+
+    setCoupleSpace(updatedSpace);
+    setAllSpaces(prev => prev.map(s => (s.id === updatedSpace.id ? updatedSpace : s)));
+    await dbSaveCoupleSpace(updatedSpace);
+    showNotice(lang === 'ar' ? 'تم تحديث بيانات ملفك الشخصي بنجاح! ✨' : 'Profile details saved! ✨');
+  };
+
   // Active Website Theme
   const activeTheme: Theme = useMemo(() => {
     const themeId = coupleSpace?.activeThemeId || 'pink-romance';
@@ -273,7 +369,7 @@ export default function App() {
             displayName: authForm.displayName.trim(),
             nickname: authForm.nickname.trim() || 'My Love',
             avatarEmoji: authForm.avatarEmoji || '👩‍❤️‍👨',
-            avatarUrl: '',
+            avatarUrl: authForm.avatarUrl || '',
             bubbleColor: '#e91e63',
             reminderTime: '20:00',
             remindersEnabled: true,
@@ -380,7 +476,7 @@ export default function App() {
             displayName: authForm.displayName.trim(),
             nickname: authForm.nickname.trim() || 'My Person',
             avatarEmoji: authForm.avatarEmoji || '💖',
-            avatarUrl: '',
+            avatarUrl: authForm.avatarUrl || '',
             bubbleColor: '#8b5cf6',
             reminderTime: '20:00',
             remindersEnabled: true,
@@ -1050,8 +1146,59 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* Profile Photo Upload Option */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      {lang === 'ar' ? 'صورة البروفايل (اختياري)' : 'Profile Photo (Optional)'}
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-rose-100 border-2 border-rose-300 flex items-center justify-center text-xl shrink-0 shadow-xs">
+                        {authForm.avatarUrl ? (
+                          <img src={authForm.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          authForm.avatarEmoji || '👤'
+                        )}
+                      </div>
+                      <label className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-xs font-semibold text-rose-800 cursor-pointer flex items-center gap-1.5 transition">
+                        <Camera className="w-4 h-4 text-rose-600" />
+                        <span>
+                          {authForm.avatarUrl
+                            ? (lang === 'ar' ? 'تغيير الصورة' : 'Change Photo')
+                            : (lang === 'ar' ? 'اختيار صورة من الجهاز' : 'Upload Photo')}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              try {
+                                const data = await compressImageFile(f, 400);
+                                setAuthForm(prev => ({ ...prev, avatarUrl: data }));
+                              } catch (err) {
+                                console.error(err);
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                      {authForm.avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setAuthForm(prev => ({ ...prev, avatarUrl: '' }))}
+                          className="text-xs text-rose-600 hover:underline"
+                        >
+                          {lang === 'ar' ? 'إزالة' : 'Remove'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-xs font-semibold mb-1 text-slate-700">Choose Avatar</label>
+                    <label className="block text-xs font-semibold mb-1 text-slate-700">
+                      {lang === 'ar' ? 'أو اختر إيموجي كبديل' : 'Or Choose Avatar Emoji'}
+                    </label>
                     <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-rose-50/60 border border-rose-200 max-h-24 overflow-y-auto">
                       {ILLUSTRATED_AVATARS.map((em) => (
                         <button
@@ -2385,14 +2532,250 @@ export default function App() {
               </div>
             </div>
 
-            {/* Couple Profile & Personalization */}
+            {/* 1. Member Profile & Avatar Photo Settings */}
+            <div
+              className="rounded-3xl p-6 sm:p-7 border shadow-lg space-y-6"
+              style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-current/10">
+                <div className="flex items-center gap-2.5">
+                  <Camera className="w-5 h-5 text-rose-500" />
+                  <h3 className="font-serif font-bold text-lg">
+                    {lang === 'ar' ? 'صورة البروفايل والملف الشخصي' : 'Profile Picture & Personal Info'}
+                  </h3>
+                </div>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 font-semibold">
+                  {activeMemberRole === 'partnerA' ? (lang === 'ar' ? 'الشريك الأول' : 'Partner A') : (lang === 'ar' ? 'الشريك الثاني' : 'Partner B')}
+                </span>
+              </div>
+
+              {/* Profile Photo Display and Upload Controls */}
+              <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-current/10">
+                <div className="relative group shrink-0">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-gradient-to-tr from-rose-500/20 to-pink-500/20 border-4 border-rose-400 shadow-md flex items-center justify-center text-4xl">
+                    {currentMember?.avatarUrl ? (
+                      <img
+                        src={currentMember.avatarUrl}
+                        alt={currentMember.displayName || 'Profile'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{profileEmoji || currentMember?.avatarEmoji || '👤'}</span>
+                    )}
+                  </div>
+                  {/* Photo badge indicator */}
+                  <label
+                    htmlFor="profile-photo-upload"
+                    className="absolute bottom-0 right-0 p-2.5 rounded-full bg-rose-600 text-white shadow-lg cursor-pointer hover:bg-rose-500 hover:scale-110 active:scale-95 transition"
+                    title={lang === 'ar' ? 'تغيير الصورة' : 'Change Photo'}
+                  >
+                    <Camera className="w-4 h-4" />
+                  </label>
+                </div>
+
+                <div className="flex-1 space-y-2 text-center sm:text-left rtl:sm:text-right min-w-0">
+                  <h4 className="font-bold text-base truncate">
+                    {currentMember?.displayName || 'My Profile'}
+                    {currentMember?.nickname && (
+                      <span className="text-xs font-normal opacity-75 ml-2 rtl:mr-2">({currentMember.nickname})</span>
+                    )}
+                  </h4>
+                  <p className="text-xs opacity-75 leading-relaxed">
+                    {lang === 'ar'
+                      ? 'ارفع صورتك المفضلة لتظهر في أعلى الموقع وعلى بطاقات الرسائل والردود والختم الشمعي.'
+                      : 'Upload your favorite photo to show on your letters, wax seals, replies, and header.'}
+                  </p>
+
+                  <div className="flex items-center gap-2.5 pt-1 justify-center sm:justify-start rtl:sm:justify-start flex-wrap">
+                    <label
+                      htmlFor="profile-photo-upload"
+                      className="px-4 py-2 rounded-xl text-white text-xs font-semibold shadow hover:scale-105 transition cursor-pointer flex items-center gap-1.5"
+                      style={{ backgroundColor: activeTheme.accent }}
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>
+                        {currentMember?.avatarUrl
+                          ? (lang === 'ar' ? 'تغيير الصورة الشخصية' : 'Change Photo')
+                          : (lang === 'ar' ? 'رفع صورة بروفايل' : 'Upload Profile Photo')}
+                      </span>
+                    </label>
+                    <input
+                      id="profile-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUpdateProfileAvatar(file);
+                      }}
+                    />
+
+                    {currentMember?.avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveProfileAvatar}
+                        className="px-3.5 py-2 rounded-xl border text-xs font-semibold hover:bg-rose-500/10 text-rose-500 border-rose-300 dark:border-rose-800 transition flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{lang === 'ar' ? 'حذف واستخدام إيموجي' : 'Remove Photo'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Edit Profile Info Form */}
+              <form onSubmit={handleSaveProfileDetails} className="space-y-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold mb-1">{t.displayName}</label>
+                    <input
+                      type="text"
+                      value={profileDisplayName}
+                      onChange={(e) => setProfileDisplayName(e.target.value)}
+                      placeholder="Your Name..."
+                      className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border text-xs"
+                      style={{ borderColor: activeTheme.border }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold mb-1">{t.nickname}</label>
+                    <input
+                      type="text"
+                      value={profileNickname}
+                      onChange={(e) => setProfileNickname(e.target.value)}
+                      placeholder="e.g. My Love, Angel..."
+                      className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border text-xs"
+                      style={{ borderColor: activeTheme.border }}
+                    />
+                  </div>
+                </div>
+
+                {/* Illustrated Avatar Emoji fallback */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5">
+                    {lang === 'ar' ? 'الإيموجي التعبيري البديل (عند عدم وجود صورة):' : 'Fallback Emoji Avatar:'}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-current/10 max-h-24 overflow-y-auto">
+                    {ILLUSTRATED_AVATARS.map((em) => (
+                      <button
+                        type="button"
+                        key={em}
+                        onClick={() => setProfileEmoji(em)}
+                        className={`w-8 h-8 rounded-lg text-base flex items-center justify-center transition ${
+                          profileEmoji === em
+                            ? 'bg-rose-600 text-white scale-110 shadow'
+                            : 'hover:bg-white/40 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl text-white text-xs font-semibold shadow hover:scale-105 transition"
+                    style={{ backgroundColor: activeTheme.accent }}
+                  >
+                    {lang === 'ar' ? 'حفظ تعديلات الملف الشخصي' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* 2. Partner Profile Card */}
+            <div
+              className="rounded-3xl p-6 sm:p-7 border shadow-lg space-y-4"
+              style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-current/10">
+                <div className="flex items-center gap-2.5">
+                  <Heart className="w-5 h-5 text-rose-500 fill-rose-500" />
+                  <h3 className="font-serif font-bold text-lg">
+                    {lang === 'ar' ? 'الملف الشخصي للشريك' : "Partner's Sanctuary Profile"}
+                  </h3>
+                </div>
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                    partnerMember
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
+                      : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                  }`}
+                >
+                  {partnerMember
+                    ? (lang === 'ar' ? '● متصل بالملاذ' : '● Connected')
+                    : (lang === 'ar' ? '○ بانتظار الانضمام' : '○ Pending')}
+                </span>
+              </div>
+
+              {partnerMember ? (
+                <div className="flex items-center gap-4 p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-current/10">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-rose-500/20 border-2 border-rose-400/50 flex items-center justify-center text-3xl shrink-0">
+                    {partnerMember.avatarUrl ? (
+                      <img
+                        src={partnerMember.avatarUrl}
+                        alt={partnerMember.displayName || 'Partner'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span>{partnerMember.avatarEmoji || '❤️'}</span>
+                    )}
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="font-bold text-base truncate">
+                      {partnerMember.displayName}
+                      {partnerMember.nickname && (
+                        <span className="text-xs font-normal opacity-75 ml-2 rtl:mr-2">({partnerMember.nickname})</span>
+                      )}
+                    </h4>
+                    <p className="text-xs opacity-75 font-mono">@{partnerMember.username}</p>
+                    <p className="text-[11px] opacity-60">
+                      {lang === 'ar' ? 'انضم إلى الملاذ في: ' : 'Joined: '}
+                      {formatCustomDate(partnerMember.joinedAt || '', 'short', lang)}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-sm">{t.partnerWaiting}</h4>
+                    <p className="text-xs opacity-75">
+                      {lang === 'ar'
+                        ? 'أرسل هذا الرمز لشريكك ليقوم بالانضمام للموقع من هاتفه.'
+                        : 'Send this pairing code to your partner to join your private sanctuary.'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 font-mono font-bold text-base border border-amber-500/40">
+                      {coupleSpace.pairingCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(coupleSpace.pairingCode);
+                        showNotice(lang === 'ar' ? 'تم نسخ الرمز!' : 'Pairing code copied!');
+                      }}
+                      className="p-2 rounded-xl bg-amber-600 text-white hover:bg-amber-500 transition"
+                      title="Copy code"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Sanctuary Personalization */}
             <div
               className="rounded-3xl p-6 sm:p-7 border shadow-lg space-y-4"
               style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}
             >
               <h3 className="font-serif font-bold text-lg flex items-center gap-2">
                 <Settings className="w-5 h-5 text-rose-500" />
-                <span>Sanctuary Personalization</span>
+                <span>{t.settingsTitle}</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
