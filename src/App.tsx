@@ -62,8 +62,8 @@ export default function App() {
     password: '',
     displayName: '',
     nickname: 'My Love',
-    coupleName: 'Our Little World',
-    websiteTitle: 'Happy Messages 💌',
+    coupleName: 'Our Little Universe',
+    websiteTitle: 'Our Little Universe 💌',
     pairingCode: '',
     avatarEmoji: '👩‍❤️‍👨'
   });
@@ -258,8 +258,8 @@ export default function App() {
       const spacePayload: CoupleSpace = {
         id: newSpaceId,
         pairingCode,
-        coupleName: authForm.coupleName.trim() || 'Our Little World',
-        websiteTitle: authForm.websiteTitle.trim() || 'Happy Messages 💌',
+        coupleName: authForm.coupleName.trim() || 'Our Little Universe',
+        websiteTitle: authForm.websiteTitle.trim() || 'Our Little Universe 💌',
         activeThemeId: 'pink-romance',
         createdAt: new Date().toISOString(),
         members: {
@@ -287,8 +287,8 @@ export default function App() {
         coupleId: newSpaceId,
         senderRole: 'partnerA',
         senderName: authForm.displayName.trim(),
-        title: 'Welcome to Our Private Sanctuary 💌',
-        body: `Hey ${authForm.nickname || 'My Love'},\n\nI created this private digital world just for the two of us. Here we can leave daily happy letters, design custom postcards, and save our favorite memories forever.\n\nShare our pairing code (${pairingCode}) so we can connect our hearts here!`,
+        title: 'Welcome to Our Little Universe 💌',
+        body: `Hey ${authForm.nickname || 'My Love'},\n\nI created Our Little Universe just for the two of us. Here we can leave daily happy letters, design custom postcards, and save our favorite memories forever.\n\nShare our pairing code (${pairingCode}) so we can connect our hearts here!`,
         mood: 'romantic',
         isFavorite: true,
         isRead: false,

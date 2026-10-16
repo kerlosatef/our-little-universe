@@ -7,8 +7,8 @@
 CREATE TABLE IF NOT EXISTS public.couple_spaces (
   id TEXT PRIMARY KEY,
   pairing_code VARCHAR(12) NOT NULL UNIQUE,
-  couple_name TEXT NOT NULL DEFAULT 'Our Little World',
-  website_title TEXT NOT NULL DEFAULT 'Happy Messages 💌',
+  couple_name TEXT NOT NULL DEFAULT 'Our Little Universe',
+  website_title TEXT NOT NULL DEFAULT 'Our Little Universe 💌',
   active_theme_id TEXT NOT NULL DEFAULT 'pink-romance',
   custom_theme JSONB DEFAULT '{}'::jsonb,
   members JSONB NOT NULL DEFAULT '{"partnerA": null, "partnerB": null}'::jsonb,

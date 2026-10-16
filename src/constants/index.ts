@@ -2,10 +2,10 @@ import { Theme, LayoutItem, Design } from '../types';
 
 export const TRANSLATIONS = {
   en: {
-    appName: "Happy Messages",
+    appName: "Our Little Universe",
     tagline: "Our Private Digital Universe",
     welcomeGreeting: "Hey",
-    welcomeSub: "Welcome to our little world.",
+    welcomeSub: "Welcome to our little universe.",
     todaysMessages: "Today's Happy Messages",
     emptyToday: "Someone could make today a little sweeter. 💌",
     writeMessage: "Write a Message",
@@ -65,10 +65,10 @@ export const TRANSLATIONS = {
     partnerWaiting: "Waiting for your partner to join with code:"
   },
   ar: {
-    appName: "رسائل سعيدة",
+    appName: "Our Little Universe",
     tagline: "عالمنا الرقمي الخاص",
     welcomeGreeting: "أهلاً",
-    welcomeSub: "مرحباً بك في عالمنا الصغير.",
+    welcomeSub: "مرحباً بك في عالمنا الصغير (Our Little Universe).",
     todaysMessages: "رسائل اليوم السعيدة",
     emptyToday: "يمكن لأحدنا أن يجعل اليوم أكثر حلاوة. 💌",
     writeMessage: "اكتب رسالة",
