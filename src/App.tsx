@@ -122,6 +122,7 @@ export default function App() {
   const [customSupabaseUrl, setCustomSupabaseUrl] = useState<string>(supabaseInfo.url);
   const [customSupabaseKey, setCustomSupabaseKey] = useState<string>('');
   const [copiedSpecTab, setCopiedSpecTab] = useState<string>('');
+  const [showAuthSupabaseModal, setShowAuthSupabaseModal] = useState<boolean>(false);
 
   const showNotice = (text: string, type: 'success' | 'error' = 'success') => {
     setToast({ text, type });
@@ -330,7 +331,19 @@ export default function App() {
       const spaces = await dbFetchAllSpaces();
       const targetSpace = spaces.find(s => s.pairingCode === code);
       if (!targetSpace) {
-        setAuthError('Invalid pairing code. Please double-check the code from your partner.');
+        if (!isSupabaseConnected()) {
+          setAuthError(
+            lang === 'ar'
+              ? 'رمز الاقتران غير موجود على هذا الجهاز. (ملاحظة: الموقع يعمل بالوضع المحلي Local Mode. للربط بين هاتفين عبر الإنترنت، اضغط زر قاعدة البيانات بأعلى الشاشة لضبط Supabase أو تأكد من إنشاء المساحة أولاً عبر New Space).'
+              : 'Pairing code not found. (Note: App is in Local Mode. To link 2 separate phones across the internet, please configure Supabase Database or create the space first via New Space).'
+          );
+        } else {
+          setAuthError(
+            lang === 'ar'
+              ? 'رمز الاقتران غير صحيح. يرجى التأكد من الرمز المكون من 6 أحرف الذي أرسله شريكك.'
+              : 'Invalid pairing code. Please double-check the 6-character code from your partner.'
+          );
+        }
         setAuthLoading(false);
         return;
       }
@@ -748,19 +761,106 @@ export default function App() {
         dir={isRTL ? 'rtl' : 'ltr'}
         className="min-h-screen flex flex-col justify-between p-4 sm:p-6 bg-gradient-to-br from-rose-50 via-pink-100 to-rose-200 text-slate-800"
       >
-        <header className="max-w-md w-full mx-auto flex items-center justify-between py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">💌</span>
-            <span className="font-serif font-bold text-lg text-rose-900">{t.appName}</span>
+        <header className="max-w-md w-full mx-auto flex items-center justify-between py-2 gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-xl sm:text-2xl">💌</span>
+            <span className="font-serif font-bold text-base sm:text-lg text-rose-900 truncate">{t.appName}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-            className="px-3 py-1 rounded-full text-xs font-semibold bg-white/70 shadow-xs border border-rose-200"
-          >
-            {lang === 'en' ? 'العربية' : 'EN'}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowAuthSupabaseModal(true)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 border transition ${
+                isSupabaseConnected()
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700'
+                  : 'bg-amber-500/15 border-amber-500/30 text-amber-700'
+              }`}
+              title="Supabase Database Status"
+            >
+              <Database className="w-3 h-3" />
+              <span>{isSupabaseConnected() ? 'Online' : 'Local'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
+              className="px-3 py-1 rounded-full text-xs font-semibold bg-white/70 shadow-xs border border-rose-200"
+            >
+              {lang === 'en' ? 'العربية' : 'EN'}
+            </button>
+          </div>
         </header>
+
+        {/* Modal for In-App Supabase Setup on Auth Screen */}
+        {showAuthSupabaseModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 w-full max-w-sm shadow-2xl border border-rose-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-serif font-bold text-base flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-500" />
+                  <span>Supabase Database Setup</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAuthSupabaseModal(false)}
+                  className="p-1 rounded-full hover:bg-black/5"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-xs opacity-75">
+                {lang === 'ar'
+                  ? 'لربط هاتفين مختلفين، ضع رابط ومشروع Supabase الخاص بك هنا أو في إعدادات Vercel:'
+                  : 'To link two different phones across the internet, enter your Supabase Project URL and Key:'}
+              </p>
+
+              <div className="space-y-2.5">
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">Supabase Project URL</label>
+                  <input
+                    type="text"
+                    value={customSupabaseUrl}
+                    onChange={(e) => setCustomSupabaseUrl(e.target.value)}
+                    placeholder="https://your-project-id.supabase.co"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">Supabase Anon Key</label>
+                  <input
+                    type="password"
+                    value={customSupabaseKey}
+                    onChange={(e) => setCustomSupabaseKey(e.target.value)}
+                    placeholder="sb_publishable_... or eyJ..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-mono"
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!customSupabaseUrl || !customSupabaseKey) {
+                        alert(lang === 'ar' ? 'يرجى إدخال الرابط والمفتاح' : 'Please enter both URL and Key');
+                        return;
+                      }
+                      saveSupabaseCustomConfig(customSupabaseUrl, customSupabaseKey);
+                    }}
+                    className="flex-1 py-2 rounded-xl bg-rose-600 text-white font-semibold text-xs shadow hover:bg-rose-500 transition"
+                  >
+                    {lang === 'ar' ? 'حفظ واتصال' : 'Save & Connect'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthSupabaseModal(false)}
+                    className="px-3 py-2 rounded-xl border text-xs font-medium"
+                  >
+                    {lang === 'ar' ? 'إلغاء' : 'Close'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="my-auto py-4 sm:py-8 max-w-md w-full mx-auto">
           <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-2xl border border-rose-200">
