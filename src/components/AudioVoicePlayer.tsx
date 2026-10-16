@@ -1,25 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2 } from 'lucide-react';
+import { Play, Pause, Volume2, Trash2 } from 'lucide-react';
 
 interface AudioVoicePlayerProps {
   voiceData: string;
   accentColor?: string;
+  onDelete?: () => void;
 }
 
 export const AudioVoicePlayer: React.FC<AudioVoicePlayerProps> = ({
   voiceData,
   accentColor = '#e91e63',
+  onDelete
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // When voiceData changes (e.g. re-recording), fully reload the audio element
   useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleLoadedMetadata = () => {
+    try {
+      audio.load();
+    } catch (e) {
+      console.warn('Audio load error:', e);
+    }
+
+    const updateDuration = () => {
       if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
         setDuration(audio.duration);
       }
@@ -34,12 +47,16 @@ export const AudioVoicePlayer: React.FC<AudioVoicePlayerProps> = ({
       setCurrentTime(0);
     };
 
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('durationchange', updateDuration);
+    audio.addEventListener('canplay', updateDuration);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('durationchange', updateDuration);
+      audio.removeEventListener('canplay', updateDuration);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
@@ -53,11 +70,15 @@ export const AudioVoicePlayer: React.FC<AudioVoicePlayerProps> = ({
       audio.pause();
       setIsPlaying(false);
     } else {
-      audio.play().then(() => {
-        setIsPlaying(true);
-      }).catch(err => {
-        console.warn('Playback error:', err);
-      });
+      audio
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('Playback error:', err);
+          setIsPlaying(false);
+        });
     }
   };
 
@@ -77,25 +98,38 @@ export const AudioVoicePlayer: React.FC<AudioVoicePlayerProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-2.5 p-2.5 sm:p-3 rounded-2xl bg-white/70 dark:bg-slate-800/80 backdrop-blur-md border border-current/10 shadow-sm max-w-full overflow-hidden">
-      <audio ref={audioRef} src={voiceData} preload="metadata" />
-      
+    <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/85 dark:bg-slate-800/90 backdrop-blur-md border border-current/15 shadow-sm max-w-full overflow-hidden">
+      <audio
+        ref={audioRef}
+        key={voiceData}
+        src={voiceData}
+        preload="auto"
+        playsInline
+      />
+
       <button
         type="button"
         onClick={togglePlay}
-        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white shadow-md transition transform active:scale-95 shrink-0"
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md transition transform active:scale-95 shrink-0"
         style={{ backgroundColor: accentColor }}
         aria-label={isPlaying ? 'Pause voice note' : 'Play voice note'}
       >
-        {isPlaying ? <Pause className="w-4 h-4 fill-white" /> : <Play className="w-4 h-4 fill-white ml-0.5" />}
+        {isPlaying ? (
+          <Pause className="w-4 h-4 fill-white" />
+        ) : (
+          <Play className="w-4 h-4 fill-white ml-0.5" />
+        )}
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between text-[11px] font-mono opacity-75 mb-1">
-          <span className="flex items-center gap-1 font-sans font-medium">
-            <Volume2 className="w-3 h-3" /> Voice Note
+        <div className="flex items-center justify-between text-[11px] font-mono opacity-80 mb-1">
+          <span className="flex items-center gap-1 font-sans font-semibold text-rose-600 dark:text-rose-400">
+            <Volume2 className="w-3.5 h-3.5" />
+            <span>Voice Note</span>
           </span>
-          <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+          <span>
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
         </div>
         <input
           type="range"
@@ -107,6 +141,17 @@ export const AudioVoicePlayer: React.FC<AudioVoicePlayerProps> = ({
           style={{ accentColor }}
         />
       </div>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="p-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition shrink-0"
+          title="Remove recording"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };

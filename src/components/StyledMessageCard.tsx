@@ -234,11 +234,11 @@ export const StyledMessageCard: React.FC<StyledMessageCardProps> = ({
 
       {/* Polaroid Photo Frame Mode */}
       {isPolaroid && message.photoData && (
-        <div className="w-full aspect-[4/3] bg-slate-900 rounded-sm overflow-hidden mb-3 shadow-inner">
+        <div className="w-full rounded-sm overflow-hidden mb-3 bg-slate-100 dark:bg-slate-900 border border-current/10 flex items-center justify-center p-1">
           <img
             src={message.photoData}
             alt={message.title || 'Attached'}
-            className="w-full h-full object-cover"
+            className="w-full h-auto max-h-[480px] object-contain mx-auto rounded-sm"
           />
         </div>
       )}
@@ -279,17 +279,17 @@ export const StyledMessageCard: React.FC<StyledMessageCardProps> = ({
         {message.body}
       </div>
 
-      {/* Photo Attachment (for Non-Polaroid layouts) */}
+      {/* Photo Attachment (for Non-Polaroid layouts) - Shows FULL photo */}
       {!isPolaroid && message.photoData && (
         <div
-          className={`mt-4 rounded-2xl overflow-hidden shadow-md max-h-64 sm:max-h-72 border border-current/10 ${
+          className={`mt-4 rounded-2xl overflow-hidden shadow-md border border-current/15 bg-black/5 dark:bg-black/30 flex items-center justify-center p-1.5 ${
             isDiary ? 'ml-6 sm:ml-8' : ''
           }`}
         >
           <img
             src={message.photoData}
             alt="Attachment"
-            className="w-full h-full object-cover"
+            className="w-full h-auto max-h-[500px] object-contain rounded-xl mx-auto block"
             loading="lazy"
           />
         </div>

@@ -87,8 +87,11 @@ export default function App() {
 
   // Voice Note Recording
   const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordSeconds, setRecordSeconds] = useState<number>(0);
+  const recordTimerRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const [showMobilePreview, setShowMobilePreview] = useState<boolean>(true);
 
   // Archive Filter State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -462,31 +465,73 @@ export default function App() {
   };
 
   // --------------------------------------------------------------------------
-  // VOICE NOTE RECORDING
+  // VOICE NOTE RECORDING (With iOS Safari mp4 & Android webm support)
   // --------------------------------------------------------------------------
   const handleStartVoiceRecord = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+
+      // Detect supported mimeType (iOS Safari supports audio/mp4, Android/Chrome supports audio/webm)
+      let mimeType = '';
+      const candidateTypes = [
+        'audio/mp4',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/aac',
+        'audio/ogg'
+      ];
+      for (const t of candidateTypes) {
+        if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
+          mimeType = t;
+          break;
+        }
+      }
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       audioChunksRef.current = [];
+
       recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
       };
+
       recorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const finalType = recorder.mimeType || mimeType || 'audio/mp4';
+        const audioBlob = new Blob(audioChunksRef.current, { type: finalType });
         const reader = new FileReader();
         reader.onloadend = () => {
-          setMsgForm(prev => ({ ...prev, voiceData: reader.result as string }));
-          showNotice('Voice note attached! 🎙️');
+          const result = reader.result as string;
+          setMsgForm(prev => ({ ...prev, voiceData: result }));
+          showNotice(lang === 'ar' ? 'تم تسجيل الصوت بنجاح! 🎙️' : 'Voice note attached! 🎙️');
         };
         reader.readAsDataURL(audioBlob);
         stream.getTracks().forEach(t => t.stop());
+        if (recordTimerRef.current) clearInterval(recordTimerRef.current);
       };
+
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(200);
       setIsRecording(true);
+      setRecordSeconds(0);
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
+      recordTimerRef.current = setInterval(() => {
+        setRecordSeconds(prev => prev + 1);
+      }, 1000);
     } catch (err) {
-      showNotice('Microphone permission not granted or unavailable.', 'error');
+      console.warn('Microphone error:', err);
+      showNotice(
+        lang === 'ar'
+          ? 'تعذر الوصول إلى الميكروفون. يرجى السماح بالصلاحية من إعدادات المتصفح.'
+          : 'Microphone permission not granted or unavailable on this device.',
+        'error'
+      );
     }
   };
 
@@ -494,7 +539,14 @@ export default function App() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current);
     }
+  };
+
+  const formatRecordTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   // --------------------------------------------------------------------------
@@ -1264,45 +1316,74 @@ export default function App() {
             PAGE 2: WRITE / EDIT MESSAGE
            =================================================================== */}
         {currentPage === 'write' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-serif font-bold flex items-center gap-2">
                   <Feather className="w-5 h-5 text-rose-500" />
-                  <span>{editingMessageId ? 'Edit Love Letter' : t.writeMessage}</span>
+                  <span>{editingMessageId ? (lang === 'ar' ? 'تعديل الرسالة' : 'Edit Love Letter') : t.writeMessage}</span>
                 </h2>
-                <p className="text-xs opacity-75">Express your heart with custom layouts, voice notes, and photos.</p>
+                <p className="text-xs opacity-75">
+                  {lang === 'ar' ? 'اكتب رسالتك وستظهر المعاينة المباشرة للظرف أمامك لحظة بلحظة.' : 'Express your heart with custom layouts, voice notes, and photos.'}
+                </p>
               </div>
 
-              {/* Mobile View Toggle: Compose vs Preview */}
-              <div className="lg:hidden flex rounded-2xl bg-current/10 p-1 text-xs font-semibold self-start">
+              {/* Mobile Live Preview Collapse/Expand Toggle */}
+              <div className="lg:hidden flex items-center gap-2 self-start">
                 <button
                   type="button"
-                  onClick={() => setWriteViewTab('compose')}
-                  className={`px-3 py-1.5 rounded-xl transition ${
-                    writeViewTab === 'compose' ? 'bg-white dark:bg-slate-800 shadow-sm' : 'opacity-70'
-                  }`}
+                  onClick={() => setShowMobilePreview(!showMobilePreview)}
+                  className="px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 shadow-xs transition"
+                  style={{
+                    backgroundColor: showMobilePreview ? activeTheme.accentSoft : 'transparent',
+                    borderColor: activeTheme.border,
+                    color: showMobilePreview ? activeTheme.accent : undefined
+                  }}
                 >
-                  Compose
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWriteViewTab('preview')}
-                  className={`px-3 py-1.5 rounded-xl transition flex items-center gap-1 ${
-                    writeViewTab === 'preview' ? 'bg-white dark:bg-slate-800 shadow-sm' : 'opacity-70'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" /> Preview Card
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{showMobilePreview ? (lang === 'ar' ? 'إخفاء المعاينة' : 'Hide Live Card') : (lang === 'ar' ? 'إظهار المعاينة 👁️' : 'Show Live Card 👁️')}</span>
                 </button>
               </div>
             </div>
 
+            {/* MOBILE ONLY: Live Interactive Card Preview (Visible while writing!) */}
+            {showMobilePreview && (
+              <div className="lg:hidden space-y-2 p-3 rounded-3xl bg-current/5 border border-current/10">
+                <div className="flex items-center justify-between text-xs font-bold px-1 opacity-80">
+                  <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'المعاينة المباشرة للظرف (تتحدث مع كتابتك فوراً)' : 'Live Card Preview (Updates as you type)'}</span>
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-current/10 font-mono">
+                    {MESSAGE_LAYOUTS.find(l => l.id === studioDesign.layout)?.name.replace(/^\d+\.\s*/, '')}
+                  </span>
+                </div>
+
+                <StyledMessageCard
+                  message={{
+                    title: msgForm.title || (lang === 'ar' ? 'عنوان رسالتك...' : 'Every Moment With You'),
+                    body: msgForm.body || (lang === 'ar' ? 'اكتب رسالتك في الأسفل وستظهر هنا مباشرة بكامل تفاصيلها...' : 'Write your message below and watch this card transform in real time. ❤️'),
+                    mood: msgForm.mood,
+                    photoData: msgForm.photoData,
+                    voiceData: msgForm.voiceData,
+                    scheduledDate: msgForm.scheduledDate,
+                    createdAt: new Date().toISOString(),
+                    isFavorite: true
+                  }}
+                  design={studioDesign}
+                  senderProfile={currentMember}
+                  recipientProfile={partnerMember}
+                  isPreview={true}
+                  reducedMotion={reducedMotion}
+                  lang={lang}
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column: Form & Design Controls */}
               <div
-                className={`lg:col-span-7 rounded-3xl p-5 sm:p-7 border shadow-lg space-y-5 ${
-                  writeViewTab === 'preview' ? 'hidden lg:block' : 'block'
-                }`}
+                className="lg:col-span-7 rounded-3xl p-5 sm:p-7 border shadow-lg space-y-5"
                 style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}
               >
                 {/* Title */}
@@ -1312,7 +1393,7 @@ export default function App() {
                     type="text"
                     value={msgForm.title}
                     onChange={(e) => setMsgForm({ ...msgForm, title: e.target.value })}
-                    placeholder="E.g. Reasons I Smiled Today..."
+                    placeholder={lang === 'ar' ? 'مثال: أسباب تجعلني أبتسم كل يوم...' : 'E.g. Reasons I Smiled Today...'}
                     className="w-full px-4 py-2.5 rounded-2xl bg-white/80 dark:bg-slate-800 border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
                     style={{ borderColor: activeTheme.border }}
                   />
@@ -1322,10 +1403,10 @@ export default function App() {
                 <div>
                   <label className="block text-xs font-bold mb-1">{t.msgBody}</label>
                   <textarea
-                    rows={6}
+                    rows={5}
                     value={msgForm.body}
                     onChange={(e) => setMsgForm({ ...msgForm, body: e.target.value })}
-                    placeholder="Write from the heart..."
+                    placeholder={lang === 'ar' ? 'اكتب من قلبك لشريكك...' : 'Write from the heart...'}
                     className="w-full px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-800 border text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-y leading-relaxed"
                     style={{ borderColor: activeTheme.border }}
                   />
@@ -1354,62 +1435,92 @@ export default function App() {
                 </div>
 
                 {/* Attachments: Photo & Voice Note */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  {/* Photo Upload with client compression */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {/* Photo Upload with Full Image Display */}
                   <div>
                     <label className="block text-xs font-bold mb-1">{t.attachPhoto}</label>
-                    <label
-                      className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800 border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90"
-                      style={{ borderColor: activeTheme.border }}
-                    >
-                      <ImageIcon className="w-4 h-4 text-rose-500" />
-                      <span>{msgForm.photoData ? 'Change Photo ✓' : 'Upload Photo'}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const dataUrl = await compressImageFile(file);
-                            setMsgForm(prev => ({ ...prev, photoData: dataUrl }));
-                            showNotice('Photo attached! 📸');
-                          }
-                        }}
-                      />
-                    </label>
+                    <div className="flex gap-1.5">
+                      <label
+                        className="flex-1 px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800 border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90"
+                        style={{ borderColor: activeTheme.border }}
+                      >
+                        <ImageIcon className="w-4 h-4 text-rose-500" />
+                        <span>{msgForm.photoData ? (lang === 'ar' ? 'تغيير الصورة ✓' : 'Change Photo ✓') : (lang === 'ar' ? 'إرفاق صورة 📷' : 'Upload Photo')}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const dataUrl = await compressImageFile(file);
+                              setMsgForm(prev => ({ ...prev, photoData: dataUrl }));
+                              showNotice(lang === 'ar' ? 'تم إرفاق الصورة كاملة بنجاح! 📸' : 'Photo attached! 📸');
+                            }
+                          }}
+                        />
+                      </label>
+                      {msgForm.photoData && (
+                        <button
+                          type="button"
+                          onClick={() => setMsgForm(prev => ({ ...prev, photoData: '' }))}
+                          className="px-2.5 py-2 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs"
+                          title="حذف الصورة"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Voice Note Recorder */}
+                  {/* Voice Note Recorder with Timer & Instant Playback */}
                   <div>
                     <label className="block text-xs font-bold mb-1">{t.recordVoice}</label>
                     {!isRecording ? (
                       <button
                         type="button"
                         onClick={handleStartVoiceRecord}
-                        className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800 border text-xs font-semibold flex items-center justify-center gap-1.5 hover:opacity-90"
+                        className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-slate-800 border text-xs font-semibold flex items-center justify-center gap-1.5 hover:opacity-90 transition"
                         style={{ borderColor: activeTheme.border }}
                       >
                         <Mic className="w-4 h-4 text-rose-500" />
-                        <span>{msgForm.voiceData ? 'Re-record Voice ✓' : 'Record Audio'}</span>
+                        <span>
+                          {msgForm.voiceData
+                            ? (lang === 'ar' ? 'إعادة تسجيل الصوت 🎙️' : 'Re-record Voice 🎙️')
+                            : (lang === 'ar' ? 'بدء تسجيل الصوت 🎙️' : 'Record Audio 🎙️')}
+                        </span>
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={handleStopVoiceRecord}
-                        className="w-full px-3 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 animate-pulse"
+                        className="w-full px-3 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 animate-pulse shadow-md"
                       >
                         <Square className="w-3.5 h-3.5 fill-white" />
-                        <span>{t.stopRecording}</span>
+                        <span>{lang === 'ar' ? `إيقاف وحفظ (${formatRecordTime(recordSeconds)}) ⏹️` : `Stop (${formatRecordTime(recordSeconds)})`}</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Voice Preview if attached */}
+                {/* Voice Preview & Instant Listening */}
                 {msgForm.voiceData && (
-                  <div className="pt-1">
-                    <AudioVoicePlayer voiceData={msgForm.voiceData} accentColor={activeTheme.accent} />
+                  <div className="pt-2 space-y-1.5 bg-rose-50/50 dark:bg-slate-800/50 p-3 rounded-2xl border border-rose-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between text-xs font-semibold px-1 text-rose-700 dark:text-rose-300">
+                      <span>{lang === 'ar' ? '🎙️ استمع لتسجيلك الصوتي للتأكد منه:' : '🎙️ Listen to your recording before sending:'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setMsgForm(prev => ({ ...prev, voiceData: '' }))}
+                        className="text-rose-500 hover:underline text-[11px]"
+                      >
+                        {lang === 'ar' ? 'حذف التسجيل ✕' : 'Remove ✕'}
+                      </button>
+                    </div>
+                    <AudioVoicePlayer
+                      voiceData={msgForm.voiceData}
+                      accentColor={activeTheme.accent}
+                      onDelete={() => setMsgForm(prev => ({ ...prev, voiceData: '' }))}
+                    />
                   </div>
                 )}
 
@@ -1469,12 +1580,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Right Column: Live Card Preview */}
-              <div
-                className={`lg:col-span-5 sticky top-24 space-y-4 ${
-                  writeViewTab === 'compose' ? 'hidden lg:block' : 'block'
-                }`}
-              >
+              {/* Right Column: Live Card Preview (Desktop Only) */}
+              <div className="hidden lg:block lg:col-span-5 sticky top-24 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider opacity-75 flex items-center gap-1.5">
                     <Eye className="w-4 h-4 text-rose-500" /> Live Card Preview
@@ -1486,8 +1593,8 @@ export default function App() {
 
                 <StyledMessageCard
                   message={{
-                    title: msgForm.title || 'Every Moment With You',
-                    body: msgForm.body || 'Write your message on the left and watch this card transform in real time. Every layout, font, texture, and sticker will be preserved with your message forever. ❤️',
+                    title: msgForm.title || (lang === 'ar' ? 'عنوان رسالتك...' : 'Every Moment With You'),
+                    body: msgForm.body || (lang === 'ar' ? 'اكتب رسالتك على اليسار وشاهد هذا الظرف يتغير مباشرة أمامك في نفس اللحظة... ❤️' : 'Write your message on the left and watch this card transform in real time. Every layout, font, texture, and sticker will be preserved with your message forever. ❤️'),
                     mood: msgForm.mood,
                     photoData: msgForm.photoData,
                     voiceData: msgForm.voiceData,

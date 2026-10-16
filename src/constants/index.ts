@@ -419,7 +419,7 @@ export function formatCustomDate(isoString: string, formatType: 'full' | 'short'
   });
 }
 
-export function compressImageFile(file: File, maxWidth = 650): Promise<string> {
+export function compressImageFile(file: File, maxWidth = 1200): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -427,15 +427,17 @@ export function compressImageFile(file: File, maxWidth = 650): Promise<string> {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ratio = Math.min(maxWidth / img.width, maxWidth / img.height, 1);
-        canvas.width = img.width * ratio;
-        canvas.height = img.height * ratio;
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
         const ctx = canvas.getContext('2d');
         if (!ctx) {
           resolve(e.target?.result as string);
           return;
         }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.onerror = reject;
       img.src = e.target?.result as string;
