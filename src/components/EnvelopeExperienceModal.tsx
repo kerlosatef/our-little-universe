@@ -49,6 +49,17 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
     }
   }, [message.id, reducedMotion]);
 
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const triggerRomanticConfetti = () => {
     try {
       confetti({
@@ -93,7 +104,25 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
   const senderProfile = coupleSpace?.members?.[message.senderRole] || null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-5"
+    >
+      {/* 1. Permanent Fixed Corner Close Button - Always visible on mobile & desktop */}
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed top-3 right-3 sm:top-5 sm:right-5 z-50 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-slate-900/90 hover:bg-slate-950 text-white border-2 border-white/60 shadow-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer"
+        aria-label="Close"
+        title={lang === 'ar' ? 'إغلاق الرسالة (Esc)' : 'Close letter (Esc)'}
+      >
+        <X className="w-6 h-6 stroke-[2.5]" />
+      </button>
+
       {/* Background Floating Hearts */}
       {!reducedMotion && stage === 'opened' && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -113,81 +142,87 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-2xl my-6">
-        {/* Top Floating Controls */}
-        <div className="flex items-center justify-between mb-3 text-white">
-          <div className="flex items-center gap-2">
-            {stage === 'opened' && !reducedMotion && (
+      <div className="min-h-full flex items-start justify-center py-2 sm:py-6">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="relative z-10 w-full max-w-2xl my-auto"
+        >
+          {/* Top Sticky Toolbar */}
+          <div className="sticky top-0 z-40 mb-3 px-3.5 py-2.5 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-white/20 shadow-xl flex items-center justify-between text-white">
+            <div className="flex items-center gap-2">
+              {stage === 'opened' && !reducedMotion && (
+                <button
+                  type="button"
+                  onClick={handleReplay}
+                  className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-xs font-medium flex items-center gap-1.5 transition"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">{t.replayAnimation}</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={handleReplay}
-                className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-xs font-medium flex items-center gap-1.5 transition"
+                onClick={() => window.print()}
+                className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-xs font-medium flex items-center gap-1.5 transition"
+                title="Print letter keepsake"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>{t.replayAnimation}</span>
+                <Printer className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Print</span>
               </button>
-            )}
+            </div>
 
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-xs font-medium flex items-center gap-1.5 transition"
-              title="Print letter keepsake"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Print</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(message)}
+                className="p-2 rounded-full bg-white/15 hover:bg-white/25 transition"
+                aria-label="Toggle favorite"
+              >
+                <Star
+                  className={`w-4 h-4 ${
+                    message.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-white'
+                  }`}
+                />
+              </button>
+
+              {isSender && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onEditMessage(message)}
+                    className="p-2 rounded-full bg-white/15 hover:bg-white/25 text-white transition"
+                    title="Edit letter"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه الرسالة؟' : 'Are you sure you want to delete this love note?')) {
+                        onDeleteMessage(message.id);
+                      }
+                    }}
+                    className="p-2 rounded-full bg-rose-500/30 hover:bg-rose-500/50 text-rose-200 transition"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white transition flex items-center gap-1.5 font-bold text-xs shadow-md"
+                aria-label="Close modal"
+                title={lang === 'ar' ? 'إغلاق الرسالة' : 'Close modal'}
+              >
+                <X className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'إغلاق' : 'Close'}</span>
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onToggleFavorite(message)}
-              className="p-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm transition"
-              aria-label="Toggle favorite"
-            >
-              <Star
-                className={`w-4 h-4 ${
-                  message.isFavorite ? 'fill-amber-400 text-amber-400' : 'text-white'
-                }`}
-              />
-            </button>
-
-            {isSender && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onEditMessage(message)}
-                  className="p-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white transition"
-                  title="Edit letter"
-                >
-                  <Edit3 className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete this love note?')) {
-                      onDeleteMessage(message.id);
-                    }
-                  }}
-                  className="p-2 rounded-full bg-rose-500/30 hover:bg-rose-500/50 backdrop-blur-sm text-rose-200 transition"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white transition"
-              aria-label="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
 
         {/* STAGE 1: Sealed Interactive Wax Envelope */}
         {stage !== 'opened' && (
@@ -342,8 +377,21 @@ export const EnvelopeExperienceModal: React.FC<EnvelopeExperienceModalProps> = (
                 </button>
               </form>
             </div>
+
+            {/* Bottom Actions: Close Letter & Back to Feed */}
+            <div className="pt-2 pb-6 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-full bg-slate-900/90 hover:bg-slate-950 text-white font-semibold text-xs sm:text-sm border border-white/30 backdrop-blur-md shadow-xl flex items-center gap-2 transition hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'إغلاق الرسالة والعودة' : t.closeLetter}</span>
+              </button>
+            </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
